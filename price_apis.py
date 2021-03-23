@@ -171,3 +171,15 @@ class CoinGecko(PriceAPI):
             )
 
         return price_data
+
+class AlphaVantage:
+    API = 'https://www.alphavantage.co'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Confirm an API key is present
+        try:
+            self.api_key = os.environ['AV_API_KEY']
+        except KeyError:
+            raise RuntimeError('AV_API_KEY environment variable must be set.')
