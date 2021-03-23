@@ -183,3 +183,37 @@ class AlphaVantage:
             self.api_key = os.environ['AV_API_KEY']
         except KeyError:
             raise RuntimeError('AV_API_KEY environment variable must be set.')
+
+    @property
+    def supported_currencies(self):
+        return ["usd"]
+
+    def fetch_price_data(self):
+        """Fetch new price data from the Alpha Vantage API"""
+        logger.info('`fetch_price_data` called.')
+
+        f'query?function=SYMBOL_SEARCH&keywords={self.symbols}&apikey={self.api}'
+
+        response = requests.get(
+            '{0}/v1/cryptocurrency/quotes/latest'.format(self.api),
+            params={'symbol': self.symbols},
+            headers={'X-CMC_PRO_API_KEY': self.api_key},
+        )
+        price_data = []
+
+        try:
+            items = response.json().get('data', {}).items()
+        except json.JSONDecodeError:
+            logger.error(f'JSON decode error: {response.text}')
+            return
+
+        for symbol, data in items:
+            try:
+                price = f"${data['quote']['USD']['price']:,.2f}"
+                change_24h = f"{data['quote']['USD']['percent_change_24h']:.1f}%"
+            except KeyError:
+                # TODO: Add error logging
+                continue
+            price_data.append(dict(symbol=symbol, price=price, change_24h=change_24h))
+
+        return price_data
