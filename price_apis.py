@@ -33,8 +33,9 @@ def get_api_cls(api_name):
 class PriceAPI:
     """The base class for Price API"""
 
-    def __init__(self, symbols, currency):
+    def __init__(self, symbols, currency, stocks):
         self.symbols = symbols
+        self.stocks = stocks
         self.currency = currency
 
         self.validate_currency(currency)
@@ -191,19 +192,19 @@ class AlphaVantage:
     def supported_currencies(self):
         return ["usd"]
 
-    def fetch_price_data(self):
-        """Fetch new price data from the Alpha Vantage API"""
-        logger.info('`fetch_price_data` called.')
+    def fetch_crypto_data(self):
+        """Fetch new crypto price data from the Alpha Vantage API"""
+        logger.info('`fetch_crypto_data` called.')
 
-        # f'query?function=SYMBOL_SEARCH&keywords={self.symbols}&apikey={self.api}'
-        # https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=CNY&apikey=demo
+        #query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=CNY&apikey=demo
 
         response = requests.get(
-            'query?function=SYMBOL_SEARCH',
-            params={'keywords': self.symbols,
+            'query?function=CURRENCY_EXCHANGE_RATE',
+            params={'from_currency': self.symbols,
+                    'to_currency': 'USD',
                     'apikey': self.api_key},
         )
-        price_data = []
+        crypto_data = []
 
         try:
             items = response.json().get('data', {}).items()
@@ -218,7 +219,39 @@ class AlphaVantage:
             except KeyError:
                 # TODO: Add error logging
                 continue
-            price_data.append(
+            crypto_data.append(
                 dict(symbol=symbol, price=price, change_24h=change_24h))
 
-        return price_data
+        return crypto_data
+
+    def fetch_stock_data(self):
+        """Fetch new stock price data from the Alpha Vantage API"""
+        logger.info('`fetch_stock_data` called.')
+
+        # f'query?function=SYMBOL_SEARCH&keywords={self.symbols}&apikey={self.api}'
+        # https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=CNY&apikey=demo
+
+        response = requests.get(
+            'query?function=SYMBOL_SEARCH',
+            params={'keywords': self.stocks,
+                    'apikey': self.api_key},
+        )
+        stocks_data = []
+
+        try:
+            items = response.json().get('data', {}).items()
+        except json.JSONDecodeError:
+            logger.error(f'JSON decode error: {response.text}')
+            return
+
+        for symbol, data in items:
+            try:
+                price = f"${data['bestMatches'][0]['USD']['price']:,.2f}"
+                change_24h = f"{data['quote']['USD']['percent_change_24h']:.1f}%"
+            except KeyError:
+                # TODO: Add error logging
+                continue
+            stocks_data.append(
+                dict(symbol=symbol, price=price, change_24h=change_24h))
+
+        return stocks_data
