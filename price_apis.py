@@ -10,7 +10,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -107,7 +108,8 @@ class CoinMarketCap(PriceAPI):
             except KeyError:
                 # TODO: Add error logging
                 continue
-            price_data.append(dict(symbol=symbol, price=price, change_24h=change_24h))
+            price_data.append(
+                dict(symbol=symbol, price=price, change_24h=change_24h))
 
         return price_data
 
@@ -172,6 +174,7 @@ class CoinGecko(PriceAPI):
 
         return price_data
 
+
 class AlphaVantage:
     API = 'https://www.alphavantage.co'
 
@@ -192,12 +195,13 @@ class AlphaVantage:
         """Fetch new price data from the Alpha Vantage API"""
         logger.info('`fetch_price_data` called.')
 
-        f'query?function=SYMBOL_SEARCH&keywords={self.symbols}&apikey={self.api}'
+        # f'query?function=SYMBOL_SEARCH&keywords={self.symbols}&apikey={self.api}'
+        # https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=CNY&apikey=demo
 
         response = requests.get(
-            '{0}/v1/cryptocurrency/quotes/latest'.format(self.api),
-            params={'symbol': self.symbols},
-            headers={'X-CMC_PRO_API_KEY': self.api_key},
+            'query?function=SYMBOL_SEARCH',
+            params={'keywords': self.symbols,
+                    'apikey': self.api_key},
         )
         price_data = []
 
@@ -209,11 +213,12 @@ class AlphaVantage:
 
         for symbol, data in items:
             try:
-                price = f"${data['quote']['USD']['price']:,.2f}"
+                price = f"${data['bestMatches'][0]['USD']['price']:,.2f}"
                 change_24h = f"{data['quote']['USD']['percent_change_24h']:.1f}%"
             except KeyError:
                 # TODO: Add error logging
                 continue
-            price_data.append(dict(symbol=symbol, price=price, change_24h=change_24h))
+            price_data.append(
+                dict(symbol=symbol, price=price, change_24h=change_24h))
 
         return price_data
