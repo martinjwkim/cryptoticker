@@ -214,7 +214,7 @@ class AlphaVantage:
 
         for symbol, data in items:
             try:
-                price = f"${data['bestMatches'][0]['USD']['price']:,.2f}"
+                price = f"${data['Realtime Currency Exchange Rate']['Exchange Rate']:,.2f}"
                 change_24h = f"{data['quote']['USD']['percent_change_24h']:.1f}%"
             except KeyError:
                 # TODO: Add error logging
@@ -246,7 +246,7 @@ class AlphaVantage:
 
         for symbol, data in items:
             try:
-                price = f"${data['bestMatches'][0]['USD']['price']:,.2f}"
+                price = f"${data['Realtime Currency Exchange Rate']['Exchange Rate']:,.2f}"
                 change_24h = f"{data['quote']['USD']['percent_change_24h']:.1f}%"
             except KeyError:
                 # TODO: Add error logging
