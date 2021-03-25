@@ -182,7 +182,7 @@ class CoinGecko(PriceAPI):
                 last_refreshed = AV_response['Meta Data']['3. Last Refreshed']
                 price_recent = AV_response['Time Series (15min)'][last_refreshed]['1. open']
                 price_open = AV_response['Time Series (15min)'].get(
-                    f"${last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
+                    f"{last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
                 change_24h = f"{100*((float(price_recent)/float(price_open))-1):.1f}%"
             except KeyError:
                 continue
@@ -232,7 +232,7 @@ class AlphaVantage(PriceAPI):
                 last_refreshed = response['Meta Data']['3. Last Refreshed']
                 price_recent = response['Time Series (30min)'][last_refreshed]['1. open']
                 price_open = response['Time Series (30min)'].get(
-                    f"${last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
+                    f"{last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
                 change_24h = f"{100*((float(price_recent)/float(price_open))-1):.1f}%"
                 price_data.append(
                     dict(symbol=stock,
