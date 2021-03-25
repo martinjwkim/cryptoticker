@@ -22,19 +22,19 @@ class Ticker(Frame):
 
         # Set up the API
         api_cls = get_api_cls(os.environ.get('API', 'coingecko'))
-        self.api = api_cls(symbols=self.get_symbols(), currency=self.get_currency())
+        self.api = api_cls(symbols=self.get_symbols(), currency=self.get_currency(), stocks=self.get_stocks())
 
         # Get user settings
-        self.refresh_rate = int(os.environ.get('REFRESH_RATE', 300))  # 300s or 5m
+        self.refresh_rate = int(os.environ.get('REFRESH_RATE', 900))  # 900s or 15m
         self.sleep = int(os.environ.get('SLEEP', 3))  # 3s
 
         super().__init__(*args, **kwargs)
 
     def get_symbols(self):
         """Get the symbols to include"""
-        symbols = os.environ.get('SYMBOLS', 'btc,eth')
+        symbols = os.environ.get('SYMBOLS', 'BTC,ETH')
         if not symbols:
-            return 'btc,eth'
+            return 'BTC,ETH'
         return symbols
 
     def get_currency(self):
@@ -43,6 +43,13 @@ class Ticker(Frame):
         if not currency:
             return 'usd'
         return currency
+
+    def get_stocks(self):
+        """Get the stocks to include"""
+        stocks = os.environ.get('STOCKS', 'BA,ETSY,TCEHY,BABA,PDD,PYPL,JD')
+        if not stocks:
+            return 'BA,ETSY,TCEHY,BABA,PDD,PYPL,JD'
+        return stocks
 
     @property
     def price_data(self):
