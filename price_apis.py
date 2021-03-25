@@ -193,6 +193,8 @@ class CoinGecko(PriceAPI):
                      change_24h=change_24h)
             )
 
+        logger.info(price_data)
+
         return price_data
 
 
