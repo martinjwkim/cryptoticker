@@ -196,7 +196,7 @@ class AlphaVantage:
         """Fetch new crypto price data from the Alpha Vantage API"""
         logger.info('`fetch_crypto_data` called.')
 
-        #query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=CNY&apikey=demo
+        # query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=CNY&apikey=demo
 
         response = requests.get(
             'query?function=CURRENCY_EXCHANGE_RATE',
@@ -228,12 +228,20 @@ class AlphaVantage:
         """Fetch new stock price data from the Alpha Vantage API"""
         logger.info('`fetch_stock_data` called.')
 
-        # f'query?function=SYMBOL_SEARCH&keywords={self.symbols}&apikey={self.api}'
-        # https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=CNY&apikey=demo
+        def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Confirm an API key is present
+        try:
+            self.api_key = os.environ['ALPHA_VANTAGE_API_KEY']
+        except KeyError:
+            raise RuntimeError('ALPHA_VANTAGE_API_KEY environment variable must be set.')
 
         response = requests.get(
-            'query?function=SYMBOL_SEARCH',
-            params={'keywords': self.stocks,
+            'query?function=TIME_SERIES_INTRADAY',
+            params={'symbol': self.stocks,
+                    'interval': '5min',
+                    'outputsize': 'full',
                     'apikey': self.api_key},
         )
         stocks_data = []
@@ -246,7 +254,8 @@ class AlphaVantage:
 
         for symbol, data in items:
             try:
-                price = f"${data['Realtime Currency Exchange Rate']['Exchange Rate']:,.2f}"
+                last_refreshed = data['Meta Data']['Last Refreshed']
+                price = f"${data['Time Series (5min)'][last_refreshed]['open']:,.2f}"
                 change_24h = f"{data['quote']['USD']['percent_change_24h']:.1f}%"
             except KeyError:
                 # TODO: Add error logging
