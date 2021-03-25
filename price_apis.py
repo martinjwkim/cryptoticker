@@ -16,7 +16,8 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-API_CLASS_MAP = {'coinmarketcap': 'CoinMarketCap', 'coingecko': 'CoinGecko'}
+API_CLASS_MAP = {'coinmarketcap': 'CoinMarketCap',
+                 'coingecko': 'CoinGecko', 'alphavantage': 'AlphaVantage'}
 
 
 def get_api_cls(api_name):
@@ -55,7 +56,6 @@ class PriceAPI:
         raise NotImplementedError
 
     def validate_currency(self, currency):
-        supported = self.supported_currencies
         if currency not in self.supported_currencies:
             raise ValueError(
                 f"CURRENCY={currency} is not supported. Options are: {self.supported_currencies}."
@@ -63,8 +63,7 @@ class PriceAPI:
 
 
 class CoinMarketCap(PriceAPI):
-    SANDBOX_API = 'https://sandbox-api.coinmarketcap.com'
-    PRODUCTION_API = 'https://pro-api.coinmarketcap.com'
+    API = 'https://pro-api.coinmarketcap.com'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -75,12 +74,6 @@ class CoinMarketCap(PriceAPI):
         except KeyError:
             raise RuntimeError('CMC_API_KEY environment variable must be set.')
 
-        self.env = (
-            self.SANDBOX_API
-            if os.environ.get('SANDBOX', '') == 'true'
-            else self.PRODUCTION_API
-        )
-
     @property
     def supported_currencies(self):
         return ["usd"]
@@ -90,7 +83,7 @@ class CoinMarketCap(PriceAPI):
         logger.info('`fetch_price_data` called.')
 
         response = requests.get(
-            '{0}/v1/cryptocurrency/quotes/latest'.format(self.api),
+            f'{self.API}/v1/cryptocurrency/quotes/latest',
             params={'symbol': self.symbols},
             headers={'X-CMC_PRO_API_KEY': self.api_key},
         )
@@ -116,13 +109,14 @@ class CoinMarketCap(PriceAPI):
 
 
 class CoinGecko(PriceAPI):
-    API = 'https://api.coingecko.com/api/v3'
+    CG_API = 'https://api.coingecko.com/api/v3'
+    AV_API = 'https://www.alphavantage.co'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Fetch the coin list and cache data for our symbols
-        response = requests.get(f'{self.API}/coins/list')
+        response = requests.get(f'{self.CG_API}/coins/list')
 
         # The CoinGecko API uses ids to fetch price data
         symbol_map = {}
@@ -134,43 +128,69 @@ class CoinGecko(PriceAPI):
 
         self.symbol_map = symbol_map
 
+        # Confirm an API key is present
+        try:
+            self.api_key = os.environ['ALPHA_VANTAGE_API_KEY']
+        except KeyError:
+            raise RuntimeError(
+                'ALPHA_VANTAGE_API_KEY environment variable must be set.')
+
     @property
     def supported_currencies(self):
-        return ["usd", "eur"]
+        return ["usd"]
 
     def fetch_price_data(self):
-        """Fetch new price data from the CoinGecko API"""
+        """Fetch new price data from the CoinGecko and AlphaVantage API"""
         logger.info('`fetch_price_data` called.')
-        logger.info(f'Fetching data for {self.symbol_map}.')
+        logger.info(f'Fetching data for {self.symbol_map} and {self.stocks}.')
 
         # Make the API request
-        response = requests.get(
-            f'{self.API}/simple/price',
+        CG_response = requests.get(
+            f'{self.CG_API}/simple/price',
             params={
                 'ids': ','.join(list(self.symbol_map.keys())),
                 'vs_currencies': self.currency,
                 'include_24hr_change': 'true',
             },
-        )
+        ).json()
+
         price_data = []
 
-        logger.info(response.json())
-
-        cur = self.currency
-        cur_change = f"{cur}_24h_change"
-        cur_symbol = "€" if cur == "eur" else "$"
-
-        for coin_id, data in response.json().items():
+        for coin_id, data in CG_response.items():
             try:
-                price = f"{cur_symbol}{data[cur]:,.2f}"
-                change_24h = f"{data[cur_change]:.1f}%"
+                price = f"${data['usd']:,.2f}"
+                change_24h = f"{data['usd_24h_change']:.1f}%"
             except KeyError:
                 continue
 
             price_data.append(
-                dict(
-                    symbol=self.symbol_map[coin_id], price=price, change_24h=change_24h
-                )
+                dict(symbol=self.symbol_map[coin_id],
+                     price=price,
+                     change_24h=change_24h)
+            )
+
+        for stock in self.stocks.split(','):
+            AV_response = requests.get(
+                f'{self.AV_API}/query?function=TIME_SERIES_INTRADAY',
+                params={'symbol': stock,
+                        'interval': '15min',
+                        'outputsize': 'full',
+                        'apikey': self.api_key},
+            ).json()
+
+            try:
+                last_refreshed = AV_response['Meta Data']['3. Last Refreshed']
+                price_recent = AV_response['Time Series (15min)'][last_refreshed]['1. open']
+                price_open = AV_response['Time Series (15min)'].get(
+                    f"${last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
+                change_24h = f"{float(price_recent)/float(price_open):.1f}%"
+            except KeyError:
+                continue
+
+            price_data.append(
+                dict(symbol=stock,
+                     price=f"${float(price_recent):,.2f}",
+                     change_24h=change_24h)
             )
 
         return price_data
@@ -199,69 +219,56 @@ class AlphaVantage(PriceAPI):
 
         price_data = []
 
-        for stock in self.stocks:
+        for stock in self.stocks.split(','):
             response = requests.get(
                 f'{self.API}/query?function=TIME_SERIES_INTRADAY',
                 params={'symbol': stock,
                         'interval': '30min',
                         'outputsize': 'full',
                         'apikey': self.api_key},
-            )
+            ).json()
 
             try:
-                item = response.json().get('data', {})
-            except json.JSONDecodeError:
-                logger.error(f'JSON decode error: {response.text}')
-                return
-
-            try:
-                last_refreshed = item['Meta Data']['3. Last Refreshed']
-                price_recent = item['Time Series (30min)'][last_refreshed]['1. open']
-                price_open = item['Time Series (30min)'].get(
+                last_refreshed = response['Meta Data']['3. Last Refreshed']
+                price_recent = response['Time Series (30min)'][last_refreshed]['1. open']
+                price_open = response['Time Series (30min)'].get(
                     f"${last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
                 change_24h = f"{float(price_recent)/float(price_open):.1f}%"
                 price_data.append(
-                    dict(symbol=stock, price=f"${float(price_recent):,.2f}", change_24h=change_24h))
+                    dict(symbol=stock,
+                         price=f"${float(price_recent):,.2f}",
+                         change_24h=change_24h))
             except KeyError:
                 # TODO: Add error logging
                 continue
 
-        for symbol in self.symbols:
+        for symbol in self.symbols.split(','):
             response_current = requests.get(
                 f'{self.API}/query?function=CURRENCY_EXCHANGE_RATE',
                 params={'from_currency': symbol,
                         'to_currency': 'USD',
                         'apikey': self.api_key},
-            )
+            ).json()
 
             response_daily = requests.get(
                 f'{self.API}/query?function=DIGITAL_CURRENCY_DAILY',
                 params={'symbol': symbol,
                         'market': 'USD',
                         'apikey': self.api_key},
-            )
+            ).json()
 
             try:
-                item_current = response_current.json().get('data', {})
-            except json.JSONDecodeError:
-                logger.error(f'JSON decode error: {response_current.text}')
-                return
-
-            try:
-                item_daily = response_daily.json().get('data', {})
-            except json.JSONDecodeError:
-                logger.error(f'JSON decode error: {response_daily.text}')
-                return
-
-            try:
-                last_refreshed = item_daily['Meta Data']['6. Last Refreshed'][:10]
-                price_recent = item_current['Realtime Currency Exchange Rate']['5. Exchange Rate']
-                price_open = item_daily['Time Series (Digital Currency Daily)'][last_refreshed]['1a. open (USD)']
+                last_refreshed = response_daily['Meta Data']['6. Last Refreshed'][:10]
+                price_recent = response_current['Realtime Currency Exchange Rate']['5. Exchange Rate']
+                price_open = response_daily['Time Series (Digital Currency Daily)'][
+                    last_refreshed]['1a. open (USD)']
                 change_24h = f"{float(price_recent)/float(price_open):.1f}%"
                 price_data.append(
-                    dict(symbol=symbol, price=f"${float(price_recent):,.2f}", change_24h=change_24h))
+                    dict(symbol=symbol,
+                         price=f"${float(price_recent):,.2f}",
+                         change_24h=change_24h))
             except KeyError:
                 # TODO: Add error logging
                 continue
 
-        return price_data 
+        return price_data
