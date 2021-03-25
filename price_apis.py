@@ -226,4 +226,42 @@ class AlphaVantage(PriceAPI):
                 # TODO: Add error logging
                 continue
 
+        for symbol in self.symbols:
+            response_current = requests.get(
+                f'{self.API}/query?function=CURRENCY_EXCHANGE_RATE',
+                params={'from_currency': symbol,
+                        'to_currency': 'USD',
+                        'apikey': self.api_key},
+            )
+
+            response_daily = requests.get(
+                f'{self.API}/query?function=DIGITAL_CURRENCY_DAILY',
+                params={'symbol': symbol,
+                        'market': 'USD',
+                        'apikey': self.api_key},
+            )
+
+            try:
+                item_current = response_current.json().get('data', {})
+            except json.JSONDecodeError:
+                logger.error(f'JSON decode error: {response_current.text}')
+                return
+
+            try:
+                item_daily = response_daily.json().get('data', {})
+            except json.JSONDecodeError:
+                logger.error(f'JSON decode error: {response_daily.text}')
+                return
+
+            try:
+                last_refreshed = item_daily['Meta Data']['6. Last Refreshed'][:10]
+                price_recent = item_current['Realtime Currency Exchange Rate']['5. Exchange Rate']
+                price_open = item_daily['Time Series (Digital Currency Daily)'][last_refreshed]['1a. open (USD)']
+                change_24h = f"{float(price_recent)/float(price_open):.1f}%"
+                price_data.append(
+                    dict(symbol=symbol, price=f"${float(price_recent):,.2f}", change_24h=change_24h))
+            except KeyError:
+                # TODO: Add error logging
+                continue
+
         return price_data 
