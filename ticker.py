@@ -46,7 +46,7 @@ class Ticker(Frame):
 
     def get_stocks(self):
         """Get the stocks to include"""
-        stocks = os.environ.get('STOCKS', 'BA,ETSY,TCEHY,BABA,PDD,PYPL,JD')
+        stocks = os.environ.get('STOCKS','BA,ETSY,BABA,PDD,PYPL')
         if not stocks:
             return 'BA,ETSY,TCEHY,BABA,PDD,PYPL,JD'
         return stocks
@@ -72,6 +72,7 @@ class Ticker(Frame):
 
         # Otherwise fetch new data and set the _last_fetch_time
         price_data = self.api.fetch_price_data()
+        logger.info(f'Fetched new prices, {price_data}')
         self._last_fetch_time = time.time()
         self._cached_price_data = price_data
 

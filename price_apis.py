@@ -116,15 +116,10 @@ class CoinGecko(PriceAPI):
         super().__init__(*args, **kwargs)
 
         # Fetch the coin list and cache data for our symbols
-        response = requests.get(f'{self.CG_API}/coins/list')
+        # response = requests.get(f'{self.CG_API}/coins/list')
 
         # The CoinGecko API uses ids to fetch price data
-        symbol_map = {}
-
-        for coin in response.json():
-            symbol = coin['symbol']
-            if symbol in self.symbols.split(','):
-                symbol_map[coin['id']] = symbol
+        symbol_map = {'bitcoin': 'BTC', 'ethereum': 'ETH'}
 
         self.symbol_map = symbol_map
 
@@ -162,11 +157,9 @@ class CoinGecko(PriceAPI):
                 change_24h = f"{data['usd_24h_change']:.1f}%"
             except KeyError:
                 continue
-
+            
             price_data.append(
-                dict(symbol=self.symbol_map[coin_id],
-                     price=price,
-                     change_24h=change_24h)
+                dict(symbol=self.symbol_map[coin_id], price=price, change_24h=change_24h)
             )
 
         for stock in self.stocks.split(','):
