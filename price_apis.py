@@ -237,19 +237,20 @@ class AlphaVantage:
         except KeyError:
             raise RuntimeError('ALPHA_VANTAGE_API_KEY environment variable must be set.')
 
-        response_recent = requests.get(
+        for stock in stocks:
+            response_recent = requests.get(
             'query?function=TIME_SERIES_INTRADAY',
             params={'symbol': self.stocks,
                     'interval': '5min',
                     'outputsize': 'full',
                     'apikey': self.api_key},
-        )
+            )
 
-        response_daily = requests.get(
-            'query?function=TIME_SERIES_DAILY',
-            params={'symbol': self.stocks,
-                    'apikey': self.api_key},
-        )
+            response_daily = requests.get(
+                'query?function=TIME_SERIES_DAILY',
+                params={'symbol': self.stocks,
+                        'apikey': self.api_key},
+            )
 
         stocks_data = []
 
