@@ -186,88 +186,44 @@ class AlphaVantage(PriceAPI):
         try:
             self.api_key = os.environ['ALPHA_VANTAGE_API_KEY']
         except KeyError:
-            raise RuntimeError('ALPHA_VANTAGE_API_KEY environment variable must be set.')
+            raise RuntimeError(
+                'ALPHA_VANTAGE_API_KEY environment variable must be set.')
 
     @property
     def supported_currencies(self):
         return ["usd"]
 
-    def fetch_crypto_data(self):
-        """Fetch new crypto price data from the Alpha Vantage API"""
-        logger.info('`fetch_crypto_data` called.')
-
-        # query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=CNY&apikey=demo
-
-        response = requests.get(
-            f'{self.API}/query?function=CURRENCY_EXCHANGE_RATE',
-            params={'from_currency': self.symbols,
-                    'to_currency': 'USD',
-                    'apikey': self.api_key},
-        )
-        crypto_data = []
-
-        try:
-            items = response.json().get('data', {}).items()
-        except json.JSONDecodeError:
-            logger.error(f'JSON decode error: {response.text}')
-            return
-
-        for symbol, data in items:
-            try:
-                price = f"${data['Realtime Currency Exchange Rate']['Exchange Rate']:,.2f}"
-                change_24h = f"{data['quote']['USD']['percent_change_24h']:.1f}%"
-            except KeyError:
-                # TODO: Add error logging
-                continue
-            crypto_data.append(
-                dict(symbol=symbol, price=price, change_24h=change_24h))
-
-        return crypto_data
-
     def fetch_price_data(self):
-        """Fetch new stock price data from the Alpha Vantage API"""
-        logger.info('`fetch_stock_data` called.')
+        """Fetch new price data from the Alpha Vantage API"""
+        logger.info('`fetch_price_data` called.')
 
-        stocks_data = []
+        price_data = []
 
         for stock in self.stocks:
-            response_recent = requests.get(
+            response = requests.get(
                 f'{self.API}/query?function=TIME_SERIES_INTRADAY',
                 params={'symbol': stock,
-                        'interval': '5min',
+                        'interval': '30min',
                         'outputsize': 'full',
                         'apikey': self.api_key},
             )
 
-            response_daily = requests.get(
-                f'{self.API}/query?function=TIME_SERIES_DAILY',
-                params={'symbol': stock,
-                        'apikey': self.api_key},
-            )
-
             try:
-                item_recent = response_recent.json().get('data', {})
+                item = response.json().get('data', {})
             except json.JSONDecodeError:
-                logger.error(f'JSON decode error: {response_recent.text}')
+                logger.error(f'JSON decode error: {response.text}')
                 return
 
             try:
-                item_daily = response_daily.json().get('data', {})
-            except json.JSONDecodeError:
-                logger.error(f'JSON decode error: {response_daily.text}')
-                return
-
-            try:
-                last_refreshed_recent = item_recent['Meta Data']['Last Refreshed']
-                last_refreshed_daily = item_daily['Meta Data']['Last Refreshed']
-                price_recent = item_recent['Time Series (5min)'][last_refreshed_recent]['open']
-                price_open = item_daily['Time Series (Daily)'][last_refreshed_daily]['open']
-                change_24h = f"{price_recent/price_open:.1f}%"
-                stocks_data.append(
-                    dict(symbol=stock, price=f"${price_recent:,.2f}", change_24h=change_24h))
-
+                last_refreshed = item['Meta Data']['3. Last Refreshed']
+                price_recent = item['Time Series (30min)'][last_refreshed]['1. open']
+                price_open = item['Time Series (30min)'].get(
+                    f"${last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
+                change_24h = f"{float(price_recent)/float(price_open):.1f}%"
+                price_data.append(
+                    dict(symbol=stock, price=f"${float(price_recent):,.2f}", change_24h=change_24h))
             except KeyError:
                 # TODO: Add error logging
                 continue
-        
-        return stocks_data
+
+        return price_data 
