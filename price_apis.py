@@ -110,7 +110,7 @@ class CoinMarketCap(PriceAPI):
 
 class CoinGecko(PriceAPI):
     CG_API = 'https://api.coingecko.com/api/v3'
-    AV_API = 'https://www.alphavantage.co'
+    FH_API = 'https://finnhub.io/api/v1/'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -125,17 +125,17 @@ class CoinGecko(PriceAPI):
 
         # Confirm an API key is present
         try:
-            self.api_key = os.environ['ALPHA_VANTAGE_API_KEY']
+            self.api_key = os.environ['FINNHUB_API_KEY']
         except KeyError:
             raise RuntimeError(
-                'ALPHA_VANTAGE_API_KEY environment variable must be set.')
+                'FINNHUB_API_KEY environment variable must be set.')
 
     @property
     def supported_currencies(self):
         return ["usd"]
 
     def fetch_price_data(self):
-        """Fetch new price data from the CoinGecko and AlphaVantage API"""
+        """Fetch new price data from the CoinGecko and FinnHub API"""
         logger.info('`fetch_price_data` called.')
         logger.info(f'Fetching data for {self.symbol_map} and {self.stocks}.')
 
@@ -164,28 +164,23 @@ class CoinGecko(PriceAPI):
             )
 
         for stock in self.stocks.split(','):
-            AV_response = requests.get(
-                f'{self.AV_API}/query?function=TIME_SERIES_INTRADAY',
+            response = requests.get(
+                f'{self.FH_API}/quote',
                 params={'symbol': stock,
-                        'interval': '15min',
-                        'outputsize': 'full',
-                        'apikey': self.api_key},
+                        'token': self.api_key},
             ).json()
 
             try:
-                last_refreshed = AV_response['Meta Data']['3. Last Refreshed']
-                price_recent = AV_response['Time Series (15min)'][last_refreshed]['1. open']
-                price_open = AV_response['Time Series (15min)'].get(
-                    f"{last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
-                change_24h = f"{100*((float(price_recent)/float(price_open))-1):.1f}%"
+                price_recent = response['c']
+                price_open = response['o']
+                change_24h = f"{100*((price_recent/price_open)-1):.1f}%"
+                price_data.append(
+                    dict(symbol=stock,
+                         price=f"${price_recent:,.2f}",
+                         change_24h=change_24h))
             except KeyError:
+                # TODO: Add error logging
                 continue
-
-            price_data.append(
-                dict(symbol=stock,
-                     price=f"${float(price_recent):,.2f}",
-                     change_24h=change_24h)
-            )
 
         logger.info(price_data)
 
