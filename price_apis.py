@@ -217,20 +217,18 @@ class FinnHub(PriceAPI):
 
         for stock in self.stocks.split(','):
             response = requests.get(
-                f'{self.API}/quote,
+                f'{self.API}/quote',
                 params={'symbol': stock,
                         'token': self.api_key},
             ).json()
 
             try:
-                last_refreshed = response['Meta Data']['3. Last Refreshed']
-                price_recent = response['Time Series (30min)'][last_refreshed]['1. open']
-                price_open = response['Time Series (30min)'].get(
-                    f"{last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
-                change_24h = f"{100*((float(price_recent)/float(price_open))-1):.1f}%"
+                price_recent = response['c']
+                price_open = response['o']
+                change_24h = f"{100*((price_recent/price_open)-1):.1f}%"
                 price_data.append(
                     dict(symbol=stock,
-                         price=f"${float(price_recent):,.2f}",
+                         price=f"${price_recent:,.2f}",
                          change_24h=change_24h))
             except KeyError:
                 # TODO: Add error logging
