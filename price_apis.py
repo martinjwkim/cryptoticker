@@ -157,9 +157,10 @@ class CoinGecko(PriceAPI):
                 change_24h = f"{data['usd_24h_change']:.1f}%"
             except KeyError:
                 continue
-            
+
             price_data.append(
-                dict(symbol=self.symbol_map[coin_id], price=price, change_24h=change_24h)
+                dict(symbol=self.symbol_map[coin_id],
+                     price=price, change_24h=change_24h)
             )
 
         for stock in self.stocks.split(','):
@@ -187,6 +188,53 @@ class CoinGecko(PriceAPI):
             )
 
         logger.info(price_data)
+
+        return price_data
+
+
+class FinnHub(PriceAPI):
+    API = 'https://finnhub.io/api/v1/'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Confirm an API key is present
+        try:
+            self.api_key = os.environ['FINNHUB_API_KEY']
+        except KeyError:
+            raise RuntimeError(
+                'FINNHUB_API_KEY environment variable must be set.')
+    
+    @property
+    def supported_currencies(self):
+        return ["usd"]
+
+    def fetch_price_data(self):
+        """Fetch new price data from the FinnHub API"""
+        logger.info('`fetch_price_data` called.')
+
+        price_data = []
+
+        for stock in self.stocks.split(','):
+            response = requests.get(
+                f'{self.API}/quote,
+                params={'symbol': stock,
+                        'token': self.api_key},
+            ).json()
+
+            try:
+                last_refreshed = response['Meta Data']['3. Last Refreshed']
+                price_recent = response['Time Series (30min)'][last_refreshed]['1. open']
+                price_open = response['Time Series (30min)'].get(
+                    f"{last_refreshed[:10]} 09:30:00", {}).get('1. open', price_recent)
+                change_24h = f"{100*((float(price_recent)/float(price_open))-1):.1f}%"
+                price_data.append(
+                    dict(symbol=stock,
+                         price=f"${float(price_recent):,.2f}",
+                         change_24h=change_24h))
+            except KeyError:
+                # TODO: Add error logging
+                continue
 
         return price_data
 

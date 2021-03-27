@@ -46,7 +46,7 @@ class Ticker(Frame):
 
     def get_stocks(self):
         """Get the stocks to include"""
-        stocks = os.environ.get('STOCKS','BA,ETSY,BABA,PDD,PYPL')
+        stocks = os.environ.get('STOCKS', 'BA,ETSY,BABA,PDD,PYPL')
         if not stocks:
             return 'BA,ETSY,TCEHY,BABA,PDD,PYPL,JD'
         return stocks
