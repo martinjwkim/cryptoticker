@@ -17,7 +17,7 @@ logger.addHandler(handler)
 
 
 API_CLASS_MAP = {'coinmarketcap': 'CoinMarketCap',
-                 'coingecko': 'CoinGecko', 'alphavantage': 'AlphaVantage'}
+                 'coingecko': 'CoinGecko', 'alphavantage': 'AlphaVantage', 'finnhub': 'FinnHub'}
 
 
 def get_api_cls(api_name):

@@ -26,7 +26,7 @@ class Ticker(Frame):
 
         # Get user settings
         self.refresh_rate = int(os.environ.get('REFRESH_RATE', 900))  # 900s or 15m
-        self.sleep = int(os.environ.get('SLEEP', 3))  # 3s
+        self.sleep = int(os.environ.get('SLEEP', 1))  # 1s
 
         super().__init__(*args, **kwargs)
 
@@ -46,9 +46,9 @@ class Ticker(Frame):
 
     def get_stocks(self):
         """Get the stocks to include"""
-        stocks = os.environ.get('STOCKS', 'BA,ETSY,BABA,PDD,PYPL')
+        stocks = os.environ.get('STOCKS', 'BA,ETSY,BABA,PDD,PYPL,BIDU')
         if not stocks:
-            return 'BA,ETSY,TCEHY,BABA,PDD,PYPL,JD'
+            return 'BA,ETSY,BABA,PDD,PYPL,BIDU'
         return stocks
 
     @property
