@@ -119,7 +119,14 @@ class CoinGecko(PriceAPI):
         # response = requests.get(f'{self.CG_API}/coins/list')
 
         # The CoinGecko API uses ids to fetch price data
-        symbol_map = {'bitcoin': 'BTC', 'ethereum': 'ETH'}
+        symbol_map = {
+            'bitcoin': 'BTC',
+            'ethereum': 'ETH',
+            'dogecoin': 'DOGE',
+            'litecoin': 'LTC',
+            'ethereum-classic': 'ETC',
+            'bitcoin-cash-sv': 'BSV',
+        }
 
         self.symbol_map = symbol_map
 
@@ -199,7 +206,7 @@ class FinnHub(PriceAPI):
         except KeyError:
             raise RuntimeError(
                 'FINNHUB_API_KEY environment variable must be set.')
-    
+
     @property
     def supported_currencies(self):
         return ["usd"]
